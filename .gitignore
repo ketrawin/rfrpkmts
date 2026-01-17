@@ -1,0 +1,12 @@
+@"
+/*
+!.gitignore
+!/server_ts
+!/server_ts/**
+!/site_ts
+!/site_ts/**
+/server_ts/node_modules/
+/site_ts/node_modules/
+/server_ts/dist/
+/site_ts/dist/
+"@ > .gitignore
