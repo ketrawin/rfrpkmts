@@ -1,4 +1,5 @@
 import { Socket } from "socket.io-client";
+import type { ClientToServerEvents, ServerToClientEvents } from '../types/socketEvents';
 import { UI, TextInput, UIButton } from "../ui/UI";
 import { setToken } from '../auth';
 import { drawRoundedRect } from "../util/Util";
@@ -8,7 +9,7 @@ export class RegisterScreen {
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
   sentRequest: boolean = false;
-  socket: Socket;
+  socket: Socket<ServerToClientEvents, ClientToServerEvents>;
   requestInitTime: number | null = null;
   lastResult: string | null = null;
   lastResultTime: number | null = null;
@@ -21,7 +22,7 @@ export class RegisterScreen {
   static confirmBtn: UIButton;
   static cancelBtn: UIButton;
 
-  constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, socket: Socket, onBack?: () => void, initial?: { username?: string; password?: string }) {
+  constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, socket: Socket<ServerToClientEvents, ClientToServerEvents>, onBack?: () => void, initial?: { username?: string; password?: string }) {
     this.canvas = canvas;
     this.ctx = ctx;
     this.socket = socket;

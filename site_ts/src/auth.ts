@@ -24,7 +24,11 @@ export function setToken(token: string | null) {
       // so we avoid a disconnect/connect cycle that causes transient drops.
       try {
         if (pok.socket.connected) {
-          try { pok.socket.emit('tokenUpdate', { token }); } catch(e) {}
+          try {
+            if (token != null) {
+              pok.socket.emit('tokenUpdate', { token });
+            }
+          } catch(e) {}
         } else {
           // if not connected, attempt a single connect to resume handshake with new auth
           try { pok.socket.connect(); } catch(e) {}

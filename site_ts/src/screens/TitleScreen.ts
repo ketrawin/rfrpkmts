@@ -1,4 +1,5 @@
 import { Socket } from 'socket.io-client';
+import type { ClientToServerEvents, ServerToClientEvents } from '../types/socketEvents';
 import { UI, TextInput, UIButton } from '../ui/UI';
 import { drawRoundedRect } from '../util/Util';
 import { setToken, fetchWithAuth, getToken } from '../auth';
@@ -8,7 +9,7 @@ import type { LoginResult, LoginResponse, MeResponse } from '../types/socket';
 export class TitleScreen {
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
-  socket: Socket;
+  socket: Socket<ServerToClientEvents, ClientToServerEvents>;
   onOpenRegister: (() => void) | null = null;
   sentLogin: boolean = false;
   loginInitTime: number | null = null;
@@ -21,7 +22,7 @@ export class TitleScreen {
   static loginButton: UIButton;
   static registerButton: UIButton;
 
-  constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, socket: Socket, onOpenRegister?: () => void) {
+  constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, socket: Socket<ServerToClientEvents, ClientToServerEvents>, onOpenRegister?: () => void) {
     this.canvas = canvas;
     this.ctx = ctx;
     this.socket = socket;

@@ -2,8 +2,6 @@ export interface RegisterPayload {
   username: string;
   password: string;
   email: string;
-  challenge?: string;
-  response?: string;
 }
 
 export interface LoginCredentials {

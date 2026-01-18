@@ -2,6 +2,7 @@ import { RegisterScreen } from "./screens/RegisterScreen";
 import { TitleScreen } from "./screens/TitleScreen";
 import NewGameScreen from "./screens/NewGameScreen";
 import { io, Socket } from "socket.io-client";
+import type { ClientToServerEvents, ServerToClientEvents } from './types/socketEvents';
 import { getToken, fetchWithAuth, attachTokenToSocketOptions } from './auth';
 import { UI } from "./ui/UI";
 import { mapResultToMessage } from './i18n/messages';
@@ -20,14 +21,15 @@ ctx.fillRect(0, 0, canvas.width, canvas.height);
 
 // connect to local TS server (attach JWT if available for legacy-like auth)
 const socketOpts = attachTokenToSocketOptions();
-const socket: Socket = io('http://localhost:2827', socketOpts);
+const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io('http://localhost:2827', socketOpts);
 // log socket connection lifecycle for debugging
-try {
-	socket.on('connect', () => console.log('[main] socket connected', socket.id, 'connected=', socket.connected));
-	socket.on('disconnect', (reason) => console.log('[main] socket disconnected', reason, 'connected=', socket.connected));
-	socket.on('connect_error', (err) => console.warn('[main] socket connect_error', err));
-	socket.on('reconnect_attempt', (n) => console.log('[main] socket reconnect_attempt', n));
-} catch(e) { console.warn('[main] socket lifecycle hook failed', e); }
+	try {
+		socket.on('connect', () => console.log('[main] socket connected', socket.id, 'connected=', socket.connected));
+		socket.on('disconnect', (reason) => console.log('[main] socket disconnected', reason, 'connected=', socket.connected));
+		socket.on('connect_error', (err) => console.warn('[main] socket connect_error', err));
+		// reconnect_attempt typing can be strict; cast socket to any for this legacy debug hook
+		(socket as any).on('reconnect_attempt', (n: number) => console.log('[main] socket reconnect_attempt', n));
+	} catch(e) { console.warn('[main] socket lifecycle hook failed', e); }
 
 // load some assets into a global mock TitleScreen for legacy-like rendering
 if (!window.TitleScreen) window.TitleScreen = {};
@@ -146,7 +148,7 @@ const gameClient = new GameClient();
 (window as any).pokemmo_ts = { socket, UI, getToken, fetchWithAuth, mapResultToMessage, current: null, game: gameClient };
 
 // Server may ask client to show newGame selection after login
-socket.on('newGame', (data: any) => {
+socket.on('newGame', (data: { username: string; starters: string[]; characters: string[] }) => {
 	try {
 		if (!data || !data.starters || !data.characters) return;
 		if (currentScreen && currentScreen.destroy) currentScreen.destroy();
@@ -159,7 +161,7 @@ socket.on('newGame', (data: any) => {
 });
 
 // server indicates startGame (can be used to switch UI)
-socket.on('startGame', (data: any) => {
+socket.on('startGame', (data: { username?: string }) => {
 	try { console.log('[main] startGame', data); } catch(e) {}
 	// hide current newGame UI if present
 	try {

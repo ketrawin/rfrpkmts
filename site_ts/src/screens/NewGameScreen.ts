@@ -1,10 +1,11 @@
 import { UI, UIButton } from '../ui/UI';
 import { Socket } from 'socket.io-client';
+import type { ClientToServerEvents, ServerToClientEvents } from '../types/socketEvents';
 
 export class NewGameScreen {
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
-  socket: Socket;
+  socket: Socket<ServerToClientEvents, ClientToServerEvents>;
   starters: string[];
   chars: string[];
 
@@ -24,7 +25,7 @@ export class NewGameScreen {
   arrowCharLeft: UIButton | null = null;
   arrowCharRight: UIButton | null = null;
 
-  constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, socket: Socket, starters: string[], chars: string[]) {
+  constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, socket: Socket<ServerToClientEvents, ClientToServerEvents>, starters: string[], chars: string[]) {
     this.canvas = canvas; this.ctx = ctx; this.socket = socket; this.starters = starters; this.chars = chars;
 
     this.pendingLoad = starters.length * 2 + chars.length + 2;

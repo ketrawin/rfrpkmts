@@ -1,3 +1,6 @@
+import type { ClientToServerEvents, ServerToClientEvents } from './socketEvents';
+import type { Socket } from 'socket.io-client';
+
 declare global {
   interface Window {
     TitleScreen?: {
@@ -8,7 +11,7 @@ declare global {
     __lastRegister?: { username?: string; password?: string };
     API_BASE?: string;
     pokemmo_ts?: {
-      socket?: any;
+      socket?: Socket<ServerToClientEvents, ClientToServerEvents> | undefined;
       UI?: any;
       getToken?: any;
       fetchWithAuth?: any;

@@ -31,3 +31,7 @@ export async function getCharacterForUser(username: string): Promise<ICharacter 
   const c = await Character.findOne({ username }).lean().exec();
   return c as any;
 }
+
+export async function updatePosition(username: string, x: number, y: number, direction: number): Promise<void> {
+  await Character.findOneAndUpdate({ username }, { $set: { x, y, direction } }).exec();
+}
