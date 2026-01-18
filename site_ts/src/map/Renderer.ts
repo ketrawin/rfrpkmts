@@ -96,7 +96,7 @@ export function renderOverchars(map: MapData, ctx: CanvasRenderingContext2D) {
 
 export function renderAnimated(map: MapData, ctx: CanvasRenderingContext2D) {
   // animated tiles are drawn from a special animated tileset image (legacy: Game.getRes('animatedTileset').obj)
-  const animImg: HTMLImageElement | undefined = (window as any).pokemmo_ts && (window as any).pokemmo_ts.animatedTileset;
+  const animImg: HTMLImageElement | undefined = window.pokemmo_ts && window.pokemmo_ts.animatedTileset;
   if (!animImg) return;
 
   const tw = map.tilewidth;
@@ -125,7 +125,7 @@ export function renderAnimated(map: MapData, ctx: CanvasRenderingContext2D) {
         const animDelay = Number(prop.animDelay) || 0;
 
         // compute frame using global Renderer.numRTicks (legacy)
-        const ticks = (window as any).Renderer && (window as any).Renderer.numRTicks || 0;
+        const ticks = window.Renderer && window.Renderer.numRTicks || 0;
         const frame = Math.floor(((ticks + animDelay) / 8) % numFrames);
 
         const srcx = ts.tilewidth * frame;

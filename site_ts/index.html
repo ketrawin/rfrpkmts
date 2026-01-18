@@ -23,6 +23,10 @@
       }
       #app { width: 800px; height: 600px; }
       #gameCanvas { display: block; }
+      /* remove default browser focus ring/outline for canvas when focused */
+      #gameCanvas:focus { outline: none; box-shadow: none; }
+      /* disable tap highlight on mobile */
+      #gameCanvas, #app { -webkit-tap-highlight-color: transparent; }
     </style>
   </head>
   <body>

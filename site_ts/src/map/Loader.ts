@@ -32,15 +32,15 @@ export async function loadMap(id: string): Promise<MapData> {
     const img = new Image();
     img.src = 'resources/tilesets/animated.png';
     // attach to window as legacy Game.getRes('animatedTileset') equivalent
-    (window as any).pokemmo_ts = (window as any).pokemmo_ts || {};
-    (window as any).pokemmo_ts.animatedTileset = img;
+    if (!window.pokemmo_ts) window.pokemmo_ts = {} as any;
+    window.pokemmo_ts!.animatedTileset = img;
     // wait for it to attempt loading
     await new Promise<void>(r => { if (img.complete) r(); else { img.onload = () => r(); img.onerror = () => r(); } });
   }
 
   // attach parsed map to global for convenience
-  (window as any).pokemmo_ts = (window as any).pokemmo_ts || {};
-  (window as any).pokemmo_ts.lastLoadedMap = map;
+  if (!window.pokemmo_ts) window.pokemmo_ts = {} as any;
+  window.pokemmo_ts!.lastLoadedMap = map;
 
   return map;
 }

@@ -45,7 +45,7 @@ export class NewGameScreen {
 
     // create buttons
     this.confirmBtn = new UIButton(340, 490, 130, 30, '');
-    const tb = (window as any).TitleScreen && (window as any).TitleScreen.titleButtons && (window as any).TitleScreen.titleButtons.obj;
+    const tb = window.TitleScreen?.titleButtons?.obj;
     this.confirmBtn.draw = (ctx: CanvasRenderingContext2D) => {
       if (tb && tb.complete) {
         try { ctx.drawImage(tb, 200, 0, 150, 50, this.confirmBtn!.x - 15, this.confirmBtn!.y - 15, 150, 50); return; } catch(e) {}
@@ -85,10 +85,10 @@ export class NewGameScreen {
     } catch (e) {}
     try {
       // prefer explicit socket, fallback to global pokemmo_ts.socket
-      const s = this.socket || ((window as any).pokemmo_ts && (window as any).pokemmo_ts.socket);
+      const s = this.socket || window.pokemmo_ts?.socket;
       if (s && typeof s.emit === 'function') {
-        const token = (window as any).pokemmo_ts && typeof (window as any).pokemmo_ts.getToken === 'function' ? (window as any).pokemmo_ts.getToken() : null;
-        s.emit('newGame', { starter: this.starters[this.curStarter], character: this.chars[this.curChar], token });
+        const token = window.pokemmo_ts?.getToken ? window.pokemmo_ts.getToken() : null;
+        s.emit('newGame', { starter: this.starters[this.curStarter], character: this.chars[this.curChar], token: token ?? undefined });
       } else {
         console.warn('emit newGame failed: socket not available');
       }
@@ -117,7 +117,7 @@ export class NewGameScreen {
       return;
     }
     ctx.save();
-    const logo = (window as any).TitleScreen?.titleLogo?.obj;
+    const logo = window.TitleScreen?.titleLogo?.obj;
     if (logo && logo.complete) try { ctx.drawImage(logo, 117, 80); } catch(e) {}
     ctx.fillStyle = '#000'; ctx.font = '21px Font3'; ctx.textAlign = 'center'; ctx.fillText('Choose your character and starter Pokémon', 400, 250);
     // draw borders at legacy positions
@@ -131,7 +131,7 @@ export class NewGameScreen {
     const sf = this.startersFollowerImage[this.curStarter];
     if (sf && sf.complete) {
       try {
-        const rt = (window as any).Renderer && (window as any).Renderer.numRTicks ? (window as any).Renderer.numRTicks : 0;
+        const rt = window.Renderer && window.Renderer.numRTicks ? window.Renderer.numRTicks : 0;
         const rtSlow = Math.floor(rt / 3); // slow down animation (3x)
         const srcX = DIR_RIGHT * POKEMON_W;
         const srcY = Math.floor((rtSlow % 10) / 5) * POKEMON_H;
@@ -141,7 +141,7 @@ export class NewGameScreen {
     const ci = this.charsImage[this.curChar];
     if (ci && ci.complete) {
       try {
-        const rt = (window as any).Renderer && (window as any).Renderer.numRTicks ? (window as any).Renderer.numRTicks : 0;
+        const rt = window.Renderer && window.Renderer.numRTicks ? window.Renderer.numRTicks : 0;
         const rtSlowC = Math.floor(rt / 3);
         const srcX = DIR_RIGHT * CHAR_W;
         const srcY = Math.floor(((rtSlowC + 3) % 20) / 5) * CHAR_H;

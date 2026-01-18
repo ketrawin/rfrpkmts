@@ -19,6 +19,49 @@ export default class GameClient {
     this.map = null;
   }
 
+  // Called when a map has been fully loaded client-side
+  onMapLoaded(m: MapData, uiController?: any) {
+    this.setMap(m);
+    try { (window as any).pokemmo_ts = (window as any).pokemmo_ts || {}; (window as any).pokemmo_ts.map = m; } catch(e) {}
+    // if UI controller provided, notify it to update screens (e.g., close loading)
+    try { if (uiController && typeof uiController.onMapLoaded === 'function') uiController.onMapLoaded(m); } catch (e) {}
+  }
+
+  // Install socket handlers onto the provided socket and optionally use uiController
+  handleSocketEvents(socket: any, uiController: any) {
+    if (!socket) return;
+
+    socket.on('newGame', (data: { username: string; starters: string[]; characters: string[] }) => {
+      try {
+        if (!data || !data.starters || !data.characters) return;
+        if (uiController && typeof uiController.openNewGame === 'function') uiController.openNewGame(data.starters, data.characters);
+      } catch (e) { console.warn('failed to open NewGameScreen', e); }
+    });
+
+    socket.on('startGame', (data: { username?: string }) => {
+      try { console.log('[main] startGame', data); } catch(e) {}
+      try { if (uiController && typeof uiController.closeCurrent === 'function') uiController.closeCurrent(); } catch(e) {}
+    });
+
+    socket.on('loadMap', (data: any) => {
+      try {
+        if (!data || !data.mapName) return;
+        import('../map/Loader').then(({ default: loadMap }) => {
+          loadMap(data.mapName).then((m:any) => {
+            try { this.onMapLoaded(m, uiController); } catch(e) {}
+          }).catch((err:any)=>{ console.warn('[main] loadMap failed', err); });
+        }).catch((err:any) => { console.warn('[main] dynamic import loadMap failed', err); });
+      } catch (e) { console.warn('[main] loadMap handler error', e); }
+    });
+  }
+
+  // Called each frame to update UI-related state; currently a thin adapter
+  updateUI(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
+    // placeholder: could update camera, sprite animations, overlays, etc.
+    // keep minimal for now; renderObjects is invoked externally by the RAF loop.
+    return;
+  }
+
   setMap(m: MapData) {
     this.map = m;
     this.gameObjects = [];

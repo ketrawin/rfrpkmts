@@ -100,7 +100,7 @@ export class RegisterScreen {
               fetch(apiBase + '/me', { headers: { Authorization: 'Bearer ' + j.token } }).then(r=>r.json()).then((mj: MeResponse)=>{
                 if (mj && mj.result === 'success' && window.pokemmo_ts && window.pokemmo_ts.current) {
                   window.pokemmo_ts.current.currentUsername = mj.user && mj.user.username;
-                  try { window.pokemmo_ts.current.render(); } catch(e){}
+                  try { window.pokemmo_ts.current.render && window.pokemmo_ts.current.render(); } catch(e){}
                 }
               }).catch(()=>{});
             } catch(e) {}
@@ -150,7 +150,7 @@ export class RegisterScreen {
     const panelH = 150;
     const panelX = Math.round((this.canvas.width - panelW) / 2);
     const panelY = 275;
-    ctx.drawImage((window as any).TitleScreen?.titleLogo?.obj || document.createElement('canvas'), 117, 80);
+    ctx.drawImage(window.TitleScreen?.titleLogo?.obj || document.createElement('canvas'), 117, 80);
     drawRoundedRect(ctx, panelX, panelY, panelW, panelH, 15, '#FFFFFF', 0.6);
 
     ctx.fillStyle = '#000';
@@ -217,7 +217,7 @@ export class RegisterScreen {
 
     // draw loading spinner if sending request
     if (this.sentRequest && this.requestInitTime != null) {
-      const loading = (window as any).TitleScreen && (window as any).TitleScreen.loadingImg && (window as any).TitleScreen.loadingImg.obj;
+      const loading = window.TitleScreen && window.TitleScreen.loadingImg && window.TitleScreen.loadingImg.obj;
       if (loading && loading.complete) {
         const frame = Math.floor((now - this.requestInitTime) / 100) % 12;
         try {
@@ -229,7 +229,7 @@ export class RegisterScreen {
     // show result/error message for a few seconds
     if (this.lastResult && this.lastResultTime && (now - this.lastResultTime < 4000)) {
       let errorMsg: string | null = null;
-      try { errorMsg = (window as any).mapResultToMessage ? (window as any).mapResultToMessage(this.lastResult) : null; } catch(e) { errorMsg = null; }
+      try { errorMsg = window.pokemmo_ts && window.pokemmo_ts.mapResultToMessage ? window.pokemmo_ts.mapResultToMessage(this.lastResult) : null; } catch(e) { errorMsg = null; }
       // fallback to import-local mapping if available
       if (!errorMsg) {
         try { const { mapResultToMessage } = require('../i18n/messages'); errorMsg = mapResultToMessage(this.lastResult); } catch(e) { errorMsg = 'Erreur : ' + this.lastResult; }
