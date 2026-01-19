@@ -23,6 +23,8 @@ export interface ClientToServerEvents {
   register: (data: import('./auth').RegisterPayload) => void;
   login: (data: import('./auth').LoginCredentials) => void;
   tokenUpdate: (data: TokenUpdatePayload) => void;
+  // explicit ack from client when UI is closed and ready to receive map
+  startGame_ack: (payload?: any) => void;
 }
 
 export interface ServerToClientEvents {

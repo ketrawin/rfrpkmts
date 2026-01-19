@@ -16,6 +16,8 @@ export class TitleScreen {
   currentUsername: string | null = null;
   loginError: string | null = null;
   _enterHook?: () => void;
+  _loginHandler?: (data: LoginResult) => void;
+  _destroyed: boolean = false;
 
   static usernameTxt: TextInput;
   static passwordTxt: TextInput;
@@ -66,8 +68,8 @@ export class TitleScreen {
     TitleScreen.registerButton.onSubmit = () => this.onRegisterSubmit();
     UI.pushInput(TitleScreen.registerButton);
 
-    // listen socket login_result
-    this.socket.on('login_result', (data: LoginResult) => {
+    // listen socket login_result - use a named handler so we can remove it on destroy
+    this._loginHandler = (data: LoginResult) => {
       (async () => {
         if (data && data.result === 'success') {
           console.log('[TitleScreen] login success');
@@ -100,9 +102,10 @@ export class TitleScreen {
           this.loginInitTime = Date.now();
         }
         this.sentLogin = false;
-        this.render();
+        if (!this._destroyed) this.render();
       })();
-    });
+    };
+    this.socket.on('login_result', this._loginHandler);
 
     // if a token exists on load, try to validate it and hydrate username
     (async () => {
@@ -241,6 +244,7 @@ export class TitleScreen {
     this.render();
     // Try REST login first (more reliable), fall back to socket login for legacy compatibility
     (async () => {
+      console.log('[TitleScreen] onLoginSubmit start', { username });
       try {
           const apiBase = window.API_BASE || 'http://localhost:2827';
         
@@ -256,6 +260,7 @@ export class TitleScreen {
           resp = null;
         }
         if (resp) {
+          console.log('[TitleScreen] /login response status', resp.status);
           let j: LoginResponse | null = null;
           try { j = (await resp.json()) as LoginResponse; } catch(e) { console.warn('failed to parse /login JSON', e); }
           if (j && j.result === 'success' && j.token) {
@@ -268,19 +273,29 @@ export class TitleScreen {
             this.sentLogin = false;
             // Also emit socket login so legacy socket flows (newGame/startGame) are triggered
             try {
+              console.log('[TitleScreen] attempting socket login emit', { socketConnected: (this.socket as any).connected });
               const doSocketLogin = () => {
-                try { this.socket.emit('login', { username, password }); } catch(e) { console.warn('socket emit after REST login failed', e); }
+                try { console.log('[TitleScreen] doSocketLogin emit'); this.socket.emit('login', { username, password }); } catch(e) { console.warn('socket emit after REST login failed', e); }
               };
               // if socket is connected, emit immediately, otherwise wait for connect (setToken may have triggered reconnect)
               try {
                 const sockAny = this.socket as any;
-                if (sockAny && sockAny.connected) {
-                  doSocketLogin();
-                } else {
-                  const onConnect = () => { try { doSocketLogin(); } finally { try { this.socket.off('connect', onConnect); } catch(e) {} } };
+                  if (sockAny && sockAny.connected) {
+                    console.log('[TitleScreen] socket already connected, emitting login');
+                    doSocketLogin();
+                  } else {
+                    console.log('[TitleScreen] socket not connected, waiting for connect to emit login');
+                  let connectTimeout: any = null;
+                  const onConnect = () => {
+                    try { doSocketLogin(); }
+                    finally {
+                      try { this.socket.off('connect', onConnect); } catch(e) {}
+                      try { if (connectTimeout) { clearTimeout(connectTimeout); connectTimeout = null; } } catch(e) {}
+                    }
+                  };
                   this.socket.once('connect', onConnect);
-                  // safety timeout: if no connect within 2s, attempt emit anyway
-                  setTimeout(() => { try { doSocketLogin(); this.socket.off('connect', onConnect); } catch(e) {} }, 2000);
+                  // safety timeout: if no connect within 2s, attempt emit anyway (will be cleared by onConnect)
+                  connectTimeout = setTimeout(() => { try { doSocketLogin(); try { this.socket.off('connect', onConnect); } catch(e) {} } catch(e) {} }, 2000);
                 }
               } catch(e) { try { this.socket.emit('login', { username, password }); } catch(err) { console.warn('socket emit after REST login failed (fallback)', err); } }
             } catch(e) { console.warn('socket emit after REST login failed outer', e); }
@@ -311,5 +326,8 @@ export class TitleScreen {
     UI.removeInput(TitleScreen.registerButton);
     // remove enter hook if set
     try { if (this._enterHook) UI.unHookEnterButton(this._enterHook); } catch(e) {}
+    // remove socket handlers and mark destroyed
+    try { if (this._loginHandler) { try { this.socket.off('login_result', this._loginHandler); } catch(e) {} this._loginHandler = undefined; } } catch(e) {}
+    this._destroyed = true;
   }
 }

@@ -95,6 +95,7 @@ export async function handleLogin(socket: Socket<ClientToServerEvents, ServerToC
     socket.emit('login_result', { result: 'success', token });
     try {
       const hasChar = await CharacterService.userHasCharacter(r.user!.username);
+      console.log('[server_ts] handleLogin userHasCharacter', r.user!.username, hasChar);
       if (!hasChar) {
         socket.emit('newGame', { username: r.user!.username, starters: SERVER_CONST.pokemonStarters, characters: SERVER_CONST.characterSprites });
         const handler = async (sel: any) => {
@@ -102,13 +103,14 @@ export async function handleLogin(socket: Socket<ClientToServerEvents, ServerToC
             if (!sel || typeof sel.starter !== 'string' || typeof sel.character !== 'string') return;
             if (!SERVER_CONST.pokemonStarters.includes(sel.starter) || !SERVER_CONST.characterSprites.includes(sel.character)) return;
             await gameManager.createCharacterAndStart(socket, r.user!.username, sel.starter, sel.character);
-          } catch (e) {}
+          } catch (e) { console.warn('[server_ts] newGame handler error', e); }
         };
         socket.once('newGame', handler);
       } else {
         await gameManager.startSession(socket, r.user!.username);
+        console.log('[server_ts] startSession invoked for', r.user!.username);
       }
-    } catch (e) {}
+    } catch (e) { console.warn('[server_ts] handleLogin userHasCharacter error', e); }
   } catch (e) {
     socket.emit('login_result', { result: 'internal_error' });
   }
@@ -126,8 +128,10 @@ export async function handleTokenUpdate(socket: Socket<ClientToServerEvents, Ser
     socket.emit('tokenUpdate_result', { result: 'success', username });
     try {
       const hasChar = await CharacterService.userHasCharacter(username);
+      console.log('[server_ts] handleTokenUpdate userHasCharacter', username, hasChar);
       if (hasChar) {
         await gameManager.startSession(socket, username);
+        console.log('[server_ts] startSession invoked for', username);
       } else {
         socket.emit('newGame', { username, starters: SERVER_CONST.pokemonStarters, characters: SERVER_CONST.characterSprites });
         const handler = async (sel: any) => {
@@ -135,11 +139,11 @@ export async function handleTokenUpdate(socket: Socket<ClientToServerEvents, Ser
             if (!sel || typeof sel.starter !== 'string' || typeof sel.character !== 'string') return;
             if (!SERVER_CONST.pokemonStarters.includes(sel.starter) || !SERVER_CONST.characterSprites.includes(sel.character)) return;
             await gameManager.createCharacterAndStart(socket, username, sel.starter, sel.character);
-          } catch (e) {}
+          } catch (e) { console.warn('[server_ts] newGame handler error', e); }
         };
         socket.once('newGame', handler);
       }
-    } catch (e) {}
+    } catch (e) { console.warn('[server_ts] handleTokenUpdate userHasCharacter error', e); }
   } catch (err) {
     try { socket.emit('tokenUpdate_result', { result: 'internal_error' }); } catch(e) {}
   }

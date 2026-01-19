@@ -1,6 +1,7 @@
 import { UI, UIButton } from '../ui/UI';
 import { Socket } from 'socket.io-client';
 import type { ClientToServerEvents, ServerToClientEvents } from '../types/socketEvents';
+import ResourceManager from '../resources/ResourceManager';
 
 export class NewGameScreen {
   canvas: HTMLCanvasElement;
@@ -10,11 +11,11 @@ export class NewGameScreen {
   chars: string[];
 
   pendingLoad: number = 0;
-  startersFollowerImage: HTMLImageElement[] = [];
-  startersSpriteImage: HTMLImageElement[] = [];
-  charsImage: HTMLImageElement[] = [];
-  border128: HTMLImageElement | null = null;
-  arrowsImg: HTMLImageElement | null = null;
+  startersFollowerImage: (HTMLImageElement|undefined)[] = [];
+  startersSpriteImage: (HTMLImageElement|undefined)[] = [];
+  charsImage: (HTMLImageElement|undefined)[] = [];
+  border128: HTMLImageElement | undefined;
+  arrowsImg: HTMLImageElement | undefined;
 
   curChar: number = 0;
   curStarter: number = 0;
@@ -32,15 +33,20 @@ export class NewGameScreen {
     this.curChar = Math.floor(Math.random() * chars.length);
     this.curStarter = Math.floor(Math.random() * starters.length);
 
-    this.border128 = new Image(); this.border128.src = '/resources/ui/border_128.png'; this.border128.onload = ()=>this.onImageLoad(); this.border128.onerror = ()=>this.onImageLoad();
-    this.arrowsImg = new Image(); this.arrowsImg.src = '/resources/ui/arrows.png'; this.arrowsImg.onload = ()=>this.onImageLoad(); this.arrowsImg.onerror = ()=>this.onImageLoad();
+    ResourceManager.loadImage('/resources/ui/border_128.png').then(img => { this.border128 = img; this.onImageLoad(); }).catch(()=>{ this.onImageLoad(); });
+    ResourceManager.loadImage('/resources/ui/arrows.png').then(img => { this.arrowsImg = img; this.onImageLoad(); }).catch(()=>{ this.onImageLoad(); });
 
     for (const s of starters) {
-      const f = new Image(); f.src = '/resources/followers/' + s + '.png'; f.onload = ()=>this.onImageLoad(); f.onerror = ()=>this.onImageLoad(); this.startersFollowerImage.push(f);
-      const sp = new Image(); sp.src = '/resources/sprites/' + s + '.png'; sp.onload = ()=>this.onImageLoad(); sp.onerror = ()=>this.onImageLoad(); this.startersSpriteImage.push(sp);
+      this.startersFollowerImage.push(undefined);
+      this.startersSpriteImage.push(undefined);
+      const idx = this.startersFollowerImage.length - 1;
+      ResourceManager.loadImage('/resources/followers/' + s + '.png').then(img => { this.startersFollowerImage[idx] = img; this.onImageLoad(); }).catch(()=>{ this.onImageLoad(); });
+      ResourceManager.loadImage('/resources/sprites/' + s + '.png').then(img => { this.startersSpriteImage[idx] = img; this.onImageLoad(); }).catch(()=>{ this.onImageLoad(); });
     }
     for (const c of chars) {
-      const ci = new Image(); ci.src = '/resources/chars/' + c + '.png'; ci.onload = ()=>this.onImageLoad(); ci.onerror = ()=>this.onImageLoad(); this.charsImage.push(ci);
+      this.charsImage.push(undefined);
+      const idx = this.charsImage.length - 1;
+      ResourceManager.loadImage('/resources/chars/' + c + '.png').then(img => { this.charsImage[idx] = img; this.onImageLoad(); }).catch(()=>{ this.onImageLoad(); });
     }
 
     // create buttons

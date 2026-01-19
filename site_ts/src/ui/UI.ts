@@ -5,6 +5,7 @@ export class UI {
   static inputs: UIInput[] = [];
   static focused: TextInput | null = null;
   static enterHooks: Array<() => void> = [];
+  static keyState: Record<string, boolean> = {};
 
   static pushInput(i: UIInput) { this.inputs.push(i); }
   static removeInput(i: UIInput) { this.inputs = this.inputs.filter(x=>x!==i); if(this.focused===i) this.focused = null; }
@@ -53,6 +54,8 @@ export class UI {
     try { document.body.style.cursor = hoveringButton ? 'pointer' : 'default'; } catch(e) {}
   }
   static onKeyDown(ev:KeyboardEvent) {
+    // track key state for game input
+    try { UI.keyState[ev.key] = true; } catch(e) {}
     if (ev.key === 'Enter') {
       // call registered enter hooks
       for (const h of this.enterHooks) { try { h(); } catch(e) {} }
@@ -75,6 +78,11 @@ export class UI {
       }
     }
     ev.preventDefault();
+  }
+
+  static onKeyUp(ev: KeyboardEvent) {
+    try { UI.keyState[ev.key] = false; } catch(e) {}
+    // allow TextInput to process keyup if needed
   }
 
   static hookEnterButton(fn:() => void) { this.enterHooks.push(fn); }

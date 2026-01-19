@@ -1,23 +1,24 @@
 import MapData from './Map';
+import ResourceManager from '../resources/ResourceManager';
 
 export async function loadMap(id: string): Promise<MapData> {
-  const resp = await fetch('resources/maps/' + id + '.json');
-  if (!resp.ok) throw new Error('Failed to fetch map ' + id);
-  const raw = await resp.json();
+  const url = 'resources/maps/' + id + '.json';
+  try { console.log('[Loader] loading map json', url); } catch(e) {}
+  const raw = await ResourceManager.loadJSON(url);
   const map = new MapData(id, raw);
 
-  // wait for all tileset images to attempt to load (simple approach)
+  // load tileset images via ResourceManager
   await Promise.all(map.tilesets.map(ts => {
-    return new Promise<void>(resolve => {
-      if (ts.loaded) return resolve();
-      if (!ts.image) return resolve();
-      if (ts.image.complete) {
-        ts.loaded = true; return resolve();
-      }
-      ts.image.onload = () => { ts.loaded = true; resolve(); };
-      ts.image.onerror = () => { ts.loaded = true; resolve(); };
+    if (ts.loaded || !ts.imageSrc) return Promise.resolve();
+    return ResourceManager.loadImage('resources/' + ts.imageSrc).then(img => {
+      ts.image = img;
+      ts.loaded = true;
+    }).catch(() => {
+      ts.loaded = true;
     });
   }));
+
+  // (tileset load debug removed)
 
   // ensure animated tiles resource exists (legacy uses resources/tilesets/animated.png)
   // create a global animated image resource if any tiles reference 'animated' property
@@ -29,13 +30,15 @@ export async function loadMap(id: string): Promise<MapData> {
     if (needsAnimated) break;
   }
   if (needsAnimated) {
-    const img = new Image();
-    img.src = 'resources/tilesets/animated.png';
-    // attach to window as legacy Game.getRes('animatedTileset') equivalent
-    if (!window.pokemmo_ts) window.pokemmo_ts = {} as any;
-    window.pokemmo_ts!.animatedTileset = img;
-    // wait for it to attempt loading
-    await new Promise<void>(r => { if (img.complete) r(); else { img.onload = () => r(); img.onerror = () => r(); } });
+    try {
+      const img = await ResourceManager.loadImage('resources/tilesets/animated.png');
+      if (!window.pokemmo_ts) window.pokemmo_ts = {} as any;
+      window.pokemmo_ts!.animatedTileset = img;
+    } catch (e) {
+      // fallback: set an empty Image so legacy code doesn't break
+      if (!window.pokemmo_ts) window.pokemmo_ts = {} as any;
+      window.pokemmo_ts!.animatedTileset = undefined;
+    }
   }
 
   // attach parsed map to global for convenience
