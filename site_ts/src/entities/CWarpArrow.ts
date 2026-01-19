@@ -22,8 +22,11 @@ export default class CWarpArrow extends CWarp {
     // simple arrow rendering using misc sprite placeholder
     const img = (window as any).pokemmo_ts && (window as any).pokemmo_ts.titleButtons && (window as any).pokemmo_ts.titleButtons.obj;
     if (!img || !(img as HTMLImageElement).complete) return;
+    const map: any = (window as any).pokemmo_ts && (window as any).pokemmo_ts.map;
+    const offX = map && typeof map.cacheOffsetX === 'number' ? map.cacheOffsetX : 0;
+    const offY = map && typeof map.cacheOffsetY === 'number' ? map.cacheOffsetY : 0;
     ctx.save();
-    ctx.translate(this.x * 32 + 16, this.y * 32 + 16);
+    ctx.translate(this.x * 32 + 16 + offX, this.y * 32 + 16 + offY);
     ctx.rotate(Math.PI / 2 * dir);
     ctx.drawImage(img, 0, 32, 32, 32, -16, -16, 32, 32);
     ctx.restore();

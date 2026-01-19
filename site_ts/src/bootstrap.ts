@@ -2,6 +2,7 @@ import { io } from 'socket.io-client';
 import { UI } from './ui/UI';
 import GameClient from './game/GameClient';
 import { getToken, attachTokenToSocketOptions } from './auth';
+import ResourceManager from './resources/ResourceManager';
 
 export function initBootstrap() {
   const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
@@ -18,17 +19,19 @@ export function initBootstrap() {
     (socket as any).on('disconnect', (reason: any) => console.log('[main] socket disconnected', reason, 'connected=', (socket as any).connected));
     (socket as any).on('connect_error', (err: any) => console.warn('[main] socket connect_error', err));
     (socket as any).on('reconnect_attempt', (n: number) => console.log('[main] socket reconnect_attempt', n));
+    try { (socket as any).onAny((event: string, ...args: any[]) => { try { console.log('[socket recv]', event, args && args.length === 1 ? args[0] : args); } catch(e) {} }); } catch(e) {}
   } catch (e) { console.warn('[main] socket lifecycle hook failed', e); }
 
-  // preload some title assets used by screens
+  // preload some title assets used by screens via ResourceManager
   const w: any = window;
   if (!w.TitleScreen) w.TitleScreen = {};
-  w.TitleScreen.titleButtons = { obj: new Image() } as any;
-  (w.TitleScreen.titleButtons.obj as HTMLImageElement).src = '/resources/ui/title_buttons.png';
-  w.TitleScreen.titleLogo = { obj: new Image() } as any;
-  (w.TitleScreen.titleLogo.obj as HTMLImageElement).src = '/resources/ui/title_logo.png';
-  w.TitleScreen.loadingImg = { obj: new Image() } as any;
-  (w.TitleScreen.loadingImg.obj as HTMLImageElement).src = '/resources/ui/loading.png';
+  // create placeholders; ResourceManager will populate obj when loaded
+  w.TitleScreen.titleButtons = { obj: null } as any;
+  ResourceManager.loadImage('/resources/ui/title_buttons.png').then(img => { w.TitleScreen.titleButtons.obj = img; }).catch(()=>{});
+  w.TitleScreen.titleLogo = { obj: null } as any;
+  ResourceManager.loadImage('/resources/ui/title_logo.png').then(img => { w.TitleScreen.titleLogo.obj = img; }).catch(()=>{});
+  w.TitleScreen.loadingImg = { obj: null } as any;
+  ResourceManager.loadImage('/resources/ui/loading.png').then(img => { w.TitleScreen.loadingImg.obj = img; }).catch(()=>{});
 
   const gameClient = new GameClient();
   w.pokemmo_ts = { socket, UI, getToken, fetchWithAuth: w.fetchWithAuth, mapResultToMessage: w.mapResultToMessage, current: null, game: gameClient } as any;

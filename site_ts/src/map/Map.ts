@@ -19,18 +19,12 @@ export class Tileset {
     this.imagewidth = data.imagewidth;
     this.imageheight = data.imageheight;
     if (data.tileproperties) {
-      // copy sparse properties
       for (const k of Object.keys(data.tileproperties)) {
         this.tileproperties[Number(k)] = data.tileproperties[k];
       }
     }
-    if (this.imageSrc && this.imageSrc !== 'tilesets/data.png') {
-      this.image = new Image();
-      this.image.onload = () => { this.loaded = true; };
-      this.image.onerror = () => { this.loaded = true; };
-      this.image.src = 'resources/' + this.imageSrc;
-    } else {
-      // data tileset (no image)
+    // Defer image creation to ResourceManager/Loader to centralize loading
+    if (!this.imageSrc || this.imageSrc === 'tilesets/data.png') {
       this.loaded = true;
     }
   }
@@ -110,7 +104,68 @@ export class MapData {
     if (!ts) return false;
     const local = gid - ts.firstgid;
     const prop = ts.tileproperties[local];
-    return prop && prop.solid === '1';
+    if (!prop) {
+      try { if ((window as any).pokemmo_ts && (window as any).pokemmo_ts._diag) console.log('[Map] isTileSolid no prop', x, y, 'gid=', gid); } catch(e) {}
+      return false;
+    }
+    const v = (prop as any).solid;
+    if (v === undefined || v === null) {
+      try { if ((window as any).pokemmo_ts && (window as any).pokemmo_ts._diag) console.log('[Map] isTileSolid prop missing solid', x, y, 'prop=', prop); } catch(e) {}
+      return false;
+    }
+    const s = String(v).toLowerCase();
+    const res = (s === '1' || s === 'true');
+    try { if ((window as any).pokemmo_ts && (window as any).pokemmo_ts._diag) console.log('[Map] isTileSolid', x, y, 'idx=', idx, 'gid=', gid, 'firstgid=', ts.firstgid, 'local=', local, 'prop=', prop, 'result=', res); } catch(e) {}
+    return res;
+  }
+
+  isTileWater(x: number, y: number): boolean {
+    if (!this.dataLayer) return false;
+    if (x < 0 || y < 0 || x >= this.dataLayer.width || y >= this.dataLayer.height) return false;
+    const idx = y * this.dataLayer.width + x;
+    const gid = (this.dataLayer.data && this.dataLayer.data[idx]) || 0;
+    if (!gid) return false;
+    const ts = this.getTilesetOfTile(gid);
+    if (!ts) return false;
+    const local = gid - ts.firstgid;
+    const prop = ts.tileproperties[local];
+    if (!prop) {
+      try { if ((window as any).pokemmo_ts && (window as any).pokemmo_ts._diag) console.log('[Map] isTileWater no prop', x, y, 'gid=', gid); } catch(e) {}
+      return false;
+    }
+    const v = (prop as any).water;
+    if (v === undefined || v === null) {
+      try { if ((window as any).pokemmo_ts && (window as any).pokemmo_ts._diag) console.log('[Map] isTileWater prop missing water', x, y, 'prop=', prop); } catch(e) {}
+      return false;
+    }
+    const s = String(v).toLowerCase();
+    const res = (s === '1' || s === 'true');
+    try { if ((window as any).pokemmo_ts && (window as any).pokemmo_ts._diag) console.log('[Map] isTileWater', x, y, 'idx=', idx, 'gid=', gid, 'firstgid=', ts.firstgid, 'local=', local, 'prop=', prop, 'result=', res); } catch(e) {}
+    return res;
+  }
+
+  isTileLedge(x: number, y: number): boolean {
+    if (!this.dataLayer) return false;
+    const idx = y * this.dataLayer.width + x;
+    const gid = (this.dataLayer.data && this.dataLayer.data[idx]) || 0;
+    if (!gid) return false;
+    const ts = this.getTilesetOfTile(gid);
+    if (!ts) return false;
+    const local = gid - ts.firstgid;
+    const prop = ts.tileproperties[local];
+    if (!prop) {
+      try { if ((window as any).pokemmo_ts && (window as any).pokemmo_ts._diag) console.log('[Map] isTileLedge no prop', x, y, 'gid=', gid); } catch(e) {}
+      return false;
+    }
+    const v = (prop as any).ledge;
+    if (v === undefined || v === null) {
+      try { if ((window as any).pokemmo_ts && (window as any).pokemmo_ts._diag) console.log('[Map] isTileLedge prop missing ledge', x, y, 'prop=', prop); } catch(e) {}
+      return false;
+    }
+    const s = String(v).toLowerCase();
+    const res = (s === '1' || s === 'true');
+    try { if ((window as any).pokemmo_ts && (window as any).pokemmo_ts._diag) console.log('[Map] isTileLedge', x, y, 'idx=', idx, 'gid=', gid, 'firstgid=', ts.firstgid, 'local=', local, 'prop=', prop, 'result=', res); } catch(e) {}
+    return res;
   }
 
   getLedgeDir(x: number, y: number): number {

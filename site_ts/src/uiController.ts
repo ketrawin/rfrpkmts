@@ -46,6 +46,14 @@ export class UIController {
     ng.render();
   }
 
+  // Called when the game's map has finished loading client-side.
+  onMapLoaded(map: any) {
+    // Default behavior: close any current UI screen (title/loading)
+    if (this.currentScreen && this.currentScreen.destroy) this.currentScreen.destroy();
+    this.currentScreen = null;
+    if (window.pokemmo_ts) window.pokemmo_ts.current = null;
+  }
+
   closeCurrent() {
     if (this.currentScreen && this.currentScreen.destroy) this.currentScreen.destroy();
     this.currentScreen = null;

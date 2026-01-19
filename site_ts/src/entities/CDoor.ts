@@ -19,7 +19,10 @@ export default class CDoor extends CWarp {
     if (img && (img as HTMLImageElement).complete) {
       const sx = 64;
       const sy = 32 * Math.min(Math.floor(this.openStep / 4), 3);
-      ctx.drawImage(img, sx, sy, 32, 32, this.x * 32, this.y * 32, 32, 32);
+      const map: any = (window as any).pokemmo_ts && (window as any).pokemmo_ts.map;
+      const offX = map && typeof map.cacheOffsetX === 'number' ? map.cacheOffsetX : 0;
+      const offY = map && typeof map.cacheOffsetY === 'number' ? map.cacheOffsetY : 0;
+      ctx.drawImage(img, sx, sy, 32, 32, this.x * 32 + offX, this.y * 32 + offY, 32, 32);
     }
     if (this.openStep > 0) ++this.openStep;
   }

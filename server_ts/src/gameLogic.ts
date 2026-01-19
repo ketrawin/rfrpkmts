@@ -1,4 +1,7 @@
 import * as CharacterService from './services/character.service';
+import Character from './models/Character';
+import fs from 'fs';
+import path from 'path';
 import { Socket } from 'socket.io';
 import { ClientToServerEvents, ServerToClientEvents } from './types/socketEvents';
 
@@ -6,7 +9,68 @@ export async function sendLoadMapForUser(socket: Socket<ClientToServerEvents, Se
   try {
     const char = await CharacterService.getCharacterForUser(username);
     if (!char) return;
-    const mapName = (char.map || (char.respawnLocation && char.respawnLocation.mapName) || 'pallet') as string;
+    let mapName = (char.map || (char.respawnLocation && char.respawnLocation.mapName) || 'pallet') as string;
+
+    // Validate persisted coords: if the saved x,y is solid on the map, find a nearby safe tile and persist it.
+    try {
+      const mapsDir = path.resolve(__dirname, '..', 'site_ts', 'public', 'resources', 'maps');
+      const mapPath = path.join(mapsDir, `${mapName}.json`);
+      if (fs.existsSync(mapPath)) {
+        const raw = fs.readFileSync(mapPath, 'utf8');
+        const j = JSON.parse(raw);
+        const width = j.width;
+        const layers = j.layers || [];
+        const dataLayer = layers.find((l: any) => (l.properties && (l.properties.data_layer === '1' || l.properties.data_layer === 1)) || l.name === 'data');
+        if (dataLayer && Array.isArray(dataLayer.data)) {
+          const data = dataLayer.data;
+          const solidGids = new Set<number>();
+          (j.tilesets || []).forEach((ts: any) => {
+            const first = Number(ts.firstgid || 0);
+            const tileprops = ts.tileproperties || {};
+            Object.keys(tileprops).forEach(k => {
+              const prop = tileprops[k] || {};
+              if (prop.solid == '1' || prop.solid === 1 || prop.solid === true || prop.solid === 'true') {
+                solidGids.add(first + Number(k));
+              }
+            });
+          });
+
+          const isSolid = (tx: number, ty: number) => {
+            if (tx < 0 || ty < 0 || tx >= width || ty >= j.height) return true;
+            const idx = ty * width + tx;
+            const gid = data[idx] || 0;
+            if (!gid) return false;
+            return solidGids.has(gid);
+          };
+
+          if (isSolid(char.x, char.y)) {
+            // search nearby tiles up to radius 8
+            const maxR = 8;
+            let found = null as null | { x: number; y: number };
+            for (let r = 1; r <= maxR && !found; r++) {
+              for (let dx = -r; dx <= r && !found; dx++) {
+                for (let dy = -r; dy <= r && !found; dy++) {
+                  if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
+                  const nx = char.x + dx;
+                  const ny = char.y + dy;
+                  if (!isSolid(nx, ny)) found = { x: nx, y: ny };
+                }
+              }
+            }
+            if (found) {
+              // persist fix
+              await Character.findOneAndUpdate({ username }, { $set: { x: found.x, y: found.y, direction: char.direction, respawnLocation: { mapName, x: found.x, y: found.y, direction: char.direction } } }).exec();
+              char.x = found.x;
+              char.y = found.y;
+              char.respawnLocation = { mapName, x: found.x, y: found.y, direction: char.direction } as any;
+              console.log('[server_ts] corrected persisted spawn for', username, '->', found.x, found.y);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[server_ts] spawn validation error', err && (err as any).message);
+    }
     const payload = {
       mapName,
       player: {

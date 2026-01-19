@@ -91,15 +91,49 @@ export class GameManager {
   async createCharacterAndStart(socket: AnySocket, username: string, starter: string, character: string) {
     // create character using existing service
     await CharacterService.createCharacterForUser(username, starter, character);
-    // ensure session and emit startGame
-    this.ensureSession(username, socket);
+    // ensure session and emit startGame (only once per session)
+    const sess = this.ensureSession(username, socket) as any;
+    if (sess.started) return;
+    sess.started = true;
     try { socket.emit('startGame', { username }); } catch (e) {}
+    // wait for client ack of startGame (legacy flow) with a short timeout
+    try {
+      await new Promise<void>((resolve) => {
+        let done = false;
+        const onAck = () => { if (done) return; done = true; try { socket.off('startGame', onAck); try { (socket as any).off('startGame_ack', onAck); } catch(e) {} } catch(e) {} resolve(); };
+        try { (socket as any).once('startGame_ack', onAck); } catch(e) {}
+        try { (socket as any).once('startGame', onAck); } catch(e) {}
+        // fallback timeout: proceed after 1500ms
+        setTimeout(() => { if (done) return; done = true; try { socket.off('startGame', onAck); } catch(e) {} resolve(); }, 1500);
+      });
+    } catch(e) {}
     await sendLoadMapForUser(socket, username);
   }
 
   async startSession(socket: AnySocket, username: string) {
-    this.ensureSession(username, socket);
+    const sess = this.ensureSession(username, socket) as any;
+    // If the session was already started on a previous socket, resend the map
+    // to the newly connected socket so the client recovers after a reload.
+    if (sess.started) {
+      try {
+        await sendLoadMapForUser(socket, username);
+      } catch (e) {
+        console.warn('[server_ts] resend loadMap on reconnect failed', e);
+      }
+      return;
+    }
+    sess.started = true;
     try { socket.emit('startGame', { username }); } catch (e) {}
+    // wait for client ack of startGame (legacy flow) with a short timeout
+    try {
+      await new Promise<void>((resolve) => {
+        let done = false;
+        const onAck = () => { if (done) return; done = true; try { socket.off('startGame', onAck); try { (socket as any).off('startGame_ack', onAck); } catch(e) {} } catch(e) {} resolve(); };
+        try { (socket as any).once('startGame_ack', onAck); } catch(e) {}
+        try { (socket as any).once('startGame', onAck); } catch(e) {}
+        setTimeout(() => { if (done) return; done = true; try { socket.off('startGame', onAck); } catch(e) {} resolve(); }, 1500);
+      });
+    } catch(e) {}
     await sendLoadMapForUser(socket, username);
   }
 
