@@ -1,9 +1,17 @@
 import { initBootstrap } from './bootstrap';
 import { bindSocketEvents } from './events';
 import { UIController } from './uiController';
+
 import renderWithCache, { renderAnimated, renderOverchars } from './map/Renderer';
+import { PixiMapRenderer } from './map/PixiRenderer';
+
 
 const { canvas, ctx, socket, gameClient } = initBootstrap();
+
+// Ajout d'un conteneur PixiJS dans #app
+const appDiv = document.getElementById('app');
+let pixiRenderer: PixiMapRenderer | null = null;
+let pixiRendererCreated = false;
 
 // Restore debug overlay preference from localStorage so it survives reloads
 try {
@@ -46,20 +54,25 @@ document.addEventListener('keydown', (ev) => { try { window.pokemmo_ts?.UI?.onKe
 document.addEventListener('keypress', (ev) => { try { window.pokemmo_ts?.UI?.onKeyPress(ev); } catch(e) { console.warn('keypress handler', e); } });
 document.addEventListener('keyup', (ev) => { try { window.pokemmo_ts?.UI?.onKeyUp(ev); } catch(e) { console.warn('keyup handler', e); } });
 
+
+
 function _rafLoop() {
   const pok = window.pokemmo_ts;
-  if (pok && pok.map) {
-    // advance global render tick counter early so tick/update logic uses the new frame id
+  // Création de PixiRenderer uniquement après login (quand la map est chargée)
+  if (pok && pok.map && appDiv && !pixiRendererCreated) {
+    pixiRenderer = new PixiMapRenderer(800, 600, appDiv);
+    pixiRendererCreated = true;
+  }
+  // Si la map est chargée (jeu lancé), on masque le canvas et on affiche la map avec PixiJS
+  if (pok && pok.map && pixiRenderer) {
+    canvas.style.display = 'none';
     (window as any).Renderer = (window as any).Renderer || { numRTicks: 0 };
     (window as any).Renderer.numRTicks++;
     (window as any).__rafFrameCount = ((window as any).__rafFrameCount || 0) + 1;
     const fnum = (window as any).__rafFrameCount;
 
-    // perform game logic / ticks before rendering to avoid rendering stale positions (reduces jitter)
     try { gameClient.updateUI(canvas, ctx); } catch(e) { console.warn('[main] updateUI error', e); }
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    // compute camera offsets (legacy behaviour from Haxe Renderer.getOffsetX/Y) based on updated char positions
     try {
       const g: any = pok.game || null;
       const map: any = pok.map;
@@ -70,51 +83,25 @@ function _rafLoop() {
         if (chr) {
           const renderX = (typeof chr.getRenderPosX === 'function') ? chr.getRenderPosX() : (Number(chr.x || 0) * map.tilewidth);
           const renderY = (typeof chr.getRenderPosY === 'function') ? chr.getRenderPosY() : (Number(chr.y || 0) * map.tileheight - 32);
-          // Center camera on the character render position. Remove the legacy
-          // "+1" offset which shifts the view left by one tile and causes a
-          // persistent one-tile visual offset after reloads.
-          const cameraX = renderX / map.tilewidth - (canvas.width / map.tilewidth) / 2;
-          const cameraY = renderY / map.tileheight - (canvas.height / map.tileheight) / 2;
-          // Use rounding (not floor) to avoid half-tile rendering shifts when
-          // the camera fractional position should center the player.
+          const cameraX = renderX / map.tilewidth - (800 / map.tilewidth) / 2;
+          const cameraY = renderY / map.tileheight - (600 / map.tileheight) / 2;
           const offUnroundedX = map.tilewidth * -cameraX;
           const offUnroundedY = map.tileheight * -cameraY;
           map.cacheOffsetX = Math.round(offUnroundedX);
           map.cacheOffsetY = Math.round(offUnroundedY);
-          // Optional detailed camera diagnostics when enabled by the debug flag
-          try {
-            const diagCam = (window as any).pokemmo_ts && (window as any).pokemmo_ts._diag_camera;
-            if (diagCam) {
-              console.log('[CameraDiag] render=(%d,%d) tile=(%d,%d) camera=(%d,%d) offUnrounded=(%d,%d) offRounded=(%d,%d) canvas=(%d,%d) cacheCanvas=(%s)',
-                renderX, renderY, map.tilewidth, map.tileheight, cameraX, cameraY,
-                Math.round(offUnroundedX*100)/100, Math.round(offUnroundedY*100)/100,
-                map.cacheOffsetX, map.cacheOffsetY,
-                canvas.width, canvas.height,
-                map.cacheCanvas ? (map.cacheCanvas.width + 'x' + map.cacheCanvas.height) : 'none'
-              );
-            }
-          } catch(e) {}
         }
       }
     } catch(e) { console.warn('[main] camera calc failed', e); }
 
+
     try {
-      renderWithCache(pok.map, ctx);
-      renderAnimated(pok.map, ctx);
-      // optional debug: overlay solid tiles if requested
-      try {
-        const diagSolid = (window as any).pokemmo_ts && (window as any).pokemmo_ts._diag_showSolid;
-        if (diagSolid) {
-          const rd = require('./map/Renderer');
-          if (rd && typeof rd.debugDrawSolidOverlay === 'function') rd.debugDrawSolidOverlay(pok.map, ctx);
-        }
-      } catch(e) {}
-      if (gameClient) gameClient.renderObjects(ctx);
-      renderOverchars(pok.map, ctx);
-    } catch (e) { console.warn('[raf] render error', e); }
-    // Auto-sync: if the GameClient has loaded a map but global pok.map isn't set,
-    // assign it and close any open UI so the map becomes visible. This handles
-    // race conditions where `startGame`/`loadMap` completed but the UI remained.
+      pixiRenderer.renderMap(pok.map, pok.map.cacheOffsetX, pok.map.cacheOffsetY);
+      // Ajoute le rendu du joueur principal si disponible
+      if (gameClient && gameClient.player) {
+        pixiRenderer.renderPlayer(gameClient.player);
+      }
+    } catch (e) { console.warn('[raf] Pixi render error', e); }
+
     try {
       const global: any = (window as any).pokemmo_ts || {};
       if (global && global.game && global.game.map && !global.map) {
@@ -128,17 +115,17 @@ function _rafLoop() {
         console.log('[main] auto-synced pokemmo_ts.map from game.map and closed UI');
       }
     } catch(e) {}
+  } else {
+    // Si le jeu n'est pas lancé, on affiche le canvas pour la UI/login
+    canvas.style.display = '';
   }
-  // (debug overlay removed)
-      // per-frame UI updates
-      try { gameClient.updateUI(canvas, ctx); } catch(e) {}
-      try {
-        const pk = (window as any).pokemmo_ts;
-        // don't render title/menus if the game has started (they overwrite the game canvas)
-        if (pk && pk.current && pk.current.render && !pk.gameStarted) pk.current.render();
-      } catch(e) {}
-      // (backup draw removed)
-  // if map failed to load, draw diagnostics overlay
+  // per-frame UI updates
+  try { gameClient.updateUI(canvas, ctx); } catch(e) {}
+  try {
+    const pk = (window as any).pokemmo_ts;
+    if (pk && pk.current && pk.current.render && !pk.gameStarted) pk.current.render();
+  } catch(e) {}
+  // if map failed to load, draw diagnostics overlay (optionnel, sur le canvas d'origine)
   try {
     const err = window.pokemmo_ts && (window.pokemmo_ts as any).mapError;
     if (err) {
@@ -147,7 +134,6 @@ function _rafLoop() {
       ctx.restore();
     }
   } catch(e) {}
-  // (debug blit removed)
   (window as any).Renderer = (window as any).Renderer || { numRTicks: 0 };
   (window as any).Renderer.numRTicks++;
   requestAnimationFrame(_rafLoop);

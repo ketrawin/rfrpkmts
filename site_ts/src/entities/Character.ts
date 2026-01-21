@@ -145,8 +145,8 @@ export default class Character extends GameObject {
     }
     // Tuned increments to slow down walking and animation for better feel
     // Previous values were 0.10/0.20 (legacy) then 0.07/0.20; reduce further to slow movement.
-    this.walkingPerc += 0.05;
-    this.animationStep += 0.15;
+    this.walkingPerc += 0.025;
+    this.animationStep += 0.075;
     if (this.animationStep >= 4.0) this.animationStep -= 4.0;
     if (this.walkingPerc >= (1.0 - Character.CHAR_MOVE_WAIT) * 0.5 && !this.walkingHasMoved) {
       // check for front tile warps/ledges if this is controllable

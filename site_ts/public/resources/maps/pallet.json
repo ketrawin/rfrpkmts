@@ -275,7 +275,9 @@
  "orientation":"orthogonal",
  "properties":
     {
-     "preload_pokemon":"13,10,16,19,21,56"
+     "preload_pokemon":"13,10,16,19,21,56",
+     "spawn_x": 208,
+     "spawn_y": 76
     },
  "tileheight":32,
  "tilesets":[

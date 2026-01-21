@@ -43,19 +43,36 @@ export async function sendLoadMapForUser(socket: Socket<ClientToServerEvents, Se
             return solidGids.has(gid);
           };
 
+          // Get spawn from map properties
+          let spawnX = char.x;
+          let spawnY = char.y;
+          if (j.properties) {
+            const sx = Number(j.properties.spawn_x || j.properties.start_x);
+            const sy = Number(j.properties.spawn_y || j.properties.start_y);
+            if (!isNaN(sx) && !isNaN(sy)) {
+              spawnX = sx;
+              spawnY = sy;
+            }
+          }
+
           if (isSolid(char.x, char.y)) {
-            // search nearby tiles up to radius 8
-            const maxR = 8;
-            let found = null as null | { x: number; y: number };
-            for (let r = 1; r <= maxR && !found; r++) {
-              for (let dx = -r; dx <= r && !found; dx++) {
-                for (let dy = -r; dy <= r && !found; dy++) {
-                  if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
-                  const nx = char.x + dx;
-                  const ny = char.y + dy;
-                  if (!isSolid(nx, ny)) found = { x: nx, y: ny };
+            // Use map spawn if available and safe, else find nearby
+            let found: { x: number; y: number } | null = { x: spawnX, y: spawnY };
+            if (isSolid(found.x, found.y)) {
+              // search nearby tiles up to radius 8
+              const maxR = 8;
+              found = null;
+              for (let r = 1; r <= maxR && !found; r++) {
+                for (let dx = -r; dx <= r && !found; dx++) {
+                  for (let dy = -r; dy <= r && !found; dy++) {
+                    if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
+                    const nx = char.x + dx;
+                    const ny = char.y + dy;
+                    if (!isSolid(nx, ny)) found = { x: nx, y: ny };
+                  }
                 }
               }
+              if (!found) found = { x: spawnX, y: spawnY }; // fallback to spawn even if solid
             }
             if (found) {
               // persist fix

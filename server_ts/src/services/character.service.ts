@@ -10,10 +10,24 @@ export async function userHasCharacter(username: string): Promise<boolean> {
 
 export async function createCharacterForUser(username: string, starterId: string, charType: string): Promise<ICharacter> {
   // default values (match legacy Haxe defaults)
-  let defaultMap = 'pallet_hero_home_2f';
+  let defaultMap = 'pallet';
   let defaultX = 1;
-  let defaultY = 3;
+  let defaultY = 1;
   let defaultDir = 0;
+
+  // Try to get spawn from map properties
+  try {
+    const mapsDir = path.resolve(__dirname, '..', '..', 'site_ts', 'public', 'resources', 'maps');
+    const mapPath = path.join(mapsDir, `${defaultMap}.json`);
+    const raw = await fs.promises.readFile(mapPath, 'utf8');
+    const j = JSON.parse(raw);
+    if (j.properties) {
+      defaultX = Number(j.properties.spawn_x || j.properties.start_x || defaultX);
+      defaultY = Number(j.properties.spawn_y || j.properties.start_y || defaultY);
+    }
+  } catch (e) {
+    console.warn('[character.service] failed to read map spawn', e);
+  }
 
   // Validate and pick a safe spawn (non-solid) near the default location.
   async function findSafeSpawn(mapName: string, x: number, y: number) {

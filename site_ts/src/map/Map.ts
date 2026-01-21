@@ -13,7 +13,7 @@ export class Tileset {
 
   constructor(data: any) {
     this.firstgid = data.firstgid || 1;
-    this.imageSrc = data.image ? data.image.replace('../', '') : null;
+    this.imageSrc = data.image ? 'resources/' + data.image.replace('../', '') : null;
     this.tilewidth = data.tilewidth;
     this.tileheight = data.tileheight;
     this.imagewidth = data.imagewidth;
@@ -43,6 +43,8 @@ export class Layer {
   data: number[] | null = null;
   width: number = 0;
   height: number = 0;
+  x: number = 0;
+  y: number = 0;
   properties: Record<string, any> = {};
   objects: any[] = [];
 
@@ -51,6 +53,8 @@ export class Layer {
     if (this.type === 'tilelayer') this.data = raw.data || [];
     this.width = raw.width || 0;
     this.height = raw.height || 0;
+    this.x = raw.x || 0;
+    this.y = raw.y || 0;
     this.properties = raw.properties || {};
     this.objects = raw.objects || [];
   }
@@ -96,8 +100,8 @@ export class MapData {
 
   isTileSolid(x: number, y: number): boolean {
     if (!this.dataLayer) return false;
-    if (x < 0 || y < 0 || x >= this.dataLayer.width || y >= this.dataLayer.height) return false;
-    const idx = y * this.dataLayer.width + x;
+    if (x < this.dataLayer.x || y < this.dataLayer.y || x >= this.dataLayer.x + this.dataLayer.width || y >= this.dataLayer.y + this.dataLayer.height) return false;
+    const idx = (y - this.dataLayer.y) * this.dataLayer.width + (x - this.dataLayer.x);
     const gid = (this.dataLayer.data && this.dataLayer.data[idx]) || 0;
     if (!gid) return false;
     const ts = this.getTilesetOfTile(gid);
@@ -121,8 +125,8 @@ export class MapData {
 
   isTileWater(x: number, y: number): boolean {
     if (!this.dataLayer) return false;
-    if (x < 0 || y < 0 || x >= this.dataLayer.width || y >= this.dataLayer.height) return false;
-    const idx = y * this.dataLayer.width + x;
+    if (x < this.dataLayer.x || y < this.dataLayer.y || x >= this.dataLayer.x + this.dataLayer.width || y >= this.dataLayer.y + this.dataLayer.height) return false;
+    const idx = (y - this.dataLayer.y) * this.dataLayer.width + (x - this.dataLayer.x);
     const gid = (this.dataLayer.data && this.dataLayer.data[idx]) || 0;
     if (!gid) return false;
     const ts = this.getTilesetOfTile(gid);
@@ -146,7 +150,8 @@ export class MapData {
 
   isTileLedge(x: number, y: number): boolean {
     if (!this.dataLayer) return false;
-    const idx = y * this.dataLayer.width + x;
+    if (x < this.dataLayer.x || y < this.dataLayer.y || x >= this.dataLayer.x + this.dataLayer.width || y >= this.dataLayer.y + this.dataLayer.height) return false;
+    const idx = (y - this.dataLayer.y) * this.dataLayer.width + (x - this.dataLayer.x);
     const gid = (this.dataLayer.data && this.dataLayer.data[idx]) || 0;
     if (!gid) return false;
     const ts = this.getTilesetOfTile(gid);
@@ -170,7 +175,8 @@ export class MapData {
 
   getLedgeDir(x: number, y: number): number {
     if (!this.dataLayer) return -1;
-    const idx = y * this.dataLayer.width + x;
+    if (x < this.dataLayer.x || y < this.dataLayer.y || x >= this.dataLayer.x + this.dataLayer.width || y >= this.dataLayer.y + this.dataLayer.height) return -1;
+    const idx = (y - this.dataLayer.y) * this.dataLayer.width + (x - this.dataLayer.x);
     const gid = (this.dataLayer.data && this.dataLayer.data[idx]) || 0;
     if (!gid) return -1;
     const ts = this.getTilesetOfTile(gid);

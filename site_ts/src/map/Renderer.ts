@@ -1,17 +1,13 @@
 import MapData, { Tileset, Layer } from './Map';
 
-function createCache(map: MapData) {
-  const canvas = document.createElement('canvas');
-  canvas.width = map.width * map.tilewidth;
-  canvas.height = map.height * map.tileheight;
-  const ctx = canvas.getContext('2d')!;
-
+export function renderWithCache(map: MapData, ctx: CanvasRenderingContext2D) {
   const tw = map.tilewidth;
   const th = map.tileheight;
+  const offX = map.cacheOffsetX || 0;
+  const offY = map.cacheOffsetY || 0;
 
-  const layerDrawCounts: Array<{ id?: string | number; drawn: number }> = [];
-  for (let li = 0; li < map.layers.length; li++) {
-    const layer = map.layers[li];
+  // Render static layers directly, like original
+  for (const layer of map.layers) {
     if (layer.type !== 'tilelayer') continue;
     if (layer.properties && (layer.properties.overchars === '1' || layer.properties.animated === '1')) continue;
     if (!layer.data) continue;
@@ -19,9 +15,14 @@ function createCache(map: MapData) {
     const w = layer.width || map.width;
     const h = layer.height || map.height;
 
-    let drawn = 0;
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
+    // Calculate visible area, similar to original
+    const startX = Math.max(0, Math.floor(-offX / tw) - layer.x);
+    const startY = Math.max(0, Math.floor(-offY / th) - layer.y);
+    const endX = Math.min(w, startX + Math.ceil(ctx.canvas.width / tw) + 2);
+    const endY = Math.min(h, startY + Math.ceil(ctx.canvas.height / th) + 2);
+
+    for (let y = startY; y < endY; y++) {
+      for (let x = startX; x < endX; x++) {
         const idx = y * w + x;
         const gid = layer.data[idx] || 0;
         if (!gid) continue;
@@ -31,50 +32,10 @@ function createCache(map: MapData) {
         const numTilesX = Math.floor(ts.imagewidth / ts.tilewidth) || 1;
         const srcx = (local % numTilesX) * ts.tilewidth;
         const srcy = Math.floor(local / numTilesX) * ts.tileheight;
-        ctx.drawImage(ts.image, srcx, srcy, ts.tilewidth, ts.tileheight, x * tw, y * th, tw, th);
-        drawn++;
+        const dx = (x + layer.x) * tw + offX;
+        const dy = (y + layer.y) * th + offY;
+        ctx.drawImage(ts.image, srcx, srcy, ts.tilewidth, ts.tileheight, dx, dy, tw, th);
       }
-    }
-    layerDrawCounts.push({ id: layer.properties && layer.properties.name ? layer.properties.name : (layer as any).id || li, drawn });
-  }
-
-  map.cacheCanvas = canvas;
-  map.cacheOffsetX = 0;
-  map.cacheOffsetY = 0;
-  try { console.log('[Renderer] cache created for', map.id, 'layerDrawCounts=', layerDrawCounts); } catch(e) {}
-}
-
-export function renderWithCache(map: MapData, ctx: CanvasRenderingContext2D) {
-  // create cache if missing
-  if (!map.cacheCanvas) createCache(map);
-  if (map.cacheCanvas) {
-    try {
-      // only log when offset changes to avoid flooding the console
-      const lastX = (map as any)._lastLoggedOffsetX;
-      const lastY = (map as any)._lastLoggedOffsetY;
-      if (lastX !== map.cacheOffsetX || lastY !== map.cacheOffsetY) {
-        console.log('[Renderer] draw attempt: main canvas=', ctx.canvas ? ctx.canvas.width + 'x' + ctx.canvas.height : 'unknown', ' cache=', map.cacheCanvas.width + 'x' + map.cacheCanvas.height, 'offset=', map.cacheOffsetX + ',' + map.cacheOffsetY);
-        (map as any)._lastLoggedOffsetX = map.cacheOffsetX;
-        (map as any)._lastLoggedOffsetY = map.cacheOffsetY;
-      }
-      try { if (window && (window as any).pokemmo_ts) (window as any).pokemmo_ts.lastCacheCanvas = map.cacheCanvas; } catch(e) {}
-    } catch(e) {}
-    // no diagnostics here in normal mode
-    // draw cache using identity transform to avoid any leftover transforms hiding the image
-    try {
-      ctx.save();
-      if ((ctx as any).setTransform) {
-        (ctx as any).setTransform(1,0,0,1,0,0);
-      }
-      // ensure compositing and alpha are fully opaque when blitting cache
-      try { ctx.globalCompositeOperation = 'source-over'; } catch(e) {}
-      try { ctx.globalAlpha = 1; } catch(e) {}
-      // clear target area first (safe no-op if outside) then draw
-      try { ctx.clearRect(map.cacheOffsetX, map.cacheOffsetY, map.cacheCanvas.width, map.cacheCanvas.height); } catch(e) {}
-      try { ctx.drawImage(map.cacheCanvas, 0, 0, map.cacheCanvas.width, map.cacheCanvas.height, map.cacheOffsetX, map.cacheOffsetY, map.cacheCanvas.width, map.cacheCanvas.height); } catch(e) { console.warn('[Renderer] drawImage failed', e); }
-      
-    } finally {
-      try { ctx.restore(); } catch(e) {}
     }
   }
 }
@@ -102,7 +63,7 @@ export function renderOverchars(map: MapData, ctx: CanvasRenderingContext2D) {
         const numTilesX = Math.floor(ts.imagewidth / ts.tilewidth) || 1;
         const srcx = (local % numTilesX) * ts.tilewidth;
         const srcy = Math.floor(local / numTilesX) * ts.tileheight;
-        ctx.drawImage(ts.image, srcx, srcy, ts.tilewidth, ts.tileheight, x * tw + offX, y * th + offY, tw, th);
+        ctx.drawImage(ts.image, srcx, srcy, ts.tilewidth, ts.tileheight, x * tw + offX + layer.x * tw, y * th + offY + layer.y * th, tw, th);
       }
     }
   }
@@ -148,7 +109,7 @@ export function renderAnimated(map: MapData, ctx: CanvasRenderingContext2D) {
         const srcy = id * ts.tileheight;
 
         if (!animImg.complete) continue;
-        ctx.drawImage(animImg, srcx, srcy, ts.tilewidth, ts.tileheight, x * tw + offX, y * th + offY, tw, th);
+        ctx.drawImage(animImg, srcx, srcy, ts.tilewidth, ts.tileheight, x * tw + offX + layer.x * tw, y * th + offY + layer.y * th, tw, th);
       }
     }
   }
@@ -166,8 +127,8 @@ export function debugDrawSolidOverlay(map: MapData, ctx: CanvasRenderingContext2
   ctx.fillStyle = 'rgba(255,0,0,0.15)';
   const w = map.dataLayer.width || map.width;
   const h = map.dataLayer.height || map.height;
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
+  for (let y = map.dataLayer.y; y < map.dataLayer.y + h; y++) {
+    for (let x = map.dataLayer.x; x < map.dataLayer.x + w; x++) {
       try {
         if (map.isTileSolid && map.isTileSolid(x, y)) {
           const rx = x * tw + offX;
